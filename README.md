@@ -1,6 +1,6 @@
 # Python 3 UDP LED server for Raspberry Pi and WS2821 LED-strips
-This repository implements a UDP server for the Raspberry Pi and WS2821 LED-strips.
-The client script also provides a music visualizer that uses sounddevice package and numpy to visualize audio data on the strip
+This repository implements an UDP server for the Raspberry Pi and WS2821 LED-strips.
+The client script also provides a music visualizer that uses `sounddevice` package and numpy to visualize audio data on the strip
 
 [Video in action](https://streamable.com/vl59y)
 (Song: Tiësto – BOOM)
