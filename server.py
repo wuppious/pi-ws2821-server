@@ -5,11 +5,25 @@ from threading import Thread
 import time
 import board
 import neopixel
+import RPi.GPIO as GPIO
 
 
 PIXEL_COUNT = 60
 PIXEL_SLEEP_TIME = 0.05
-GPIO_PIN = board.D12
+
+# Pins
+GPIO_PIN_NEOPIXEL = board.D12
+GPIO_PIN_RED = 
+GPIO_PIN_GREEN = 
+GPIO_PIN_BLUE = 
+PWM_REFRESH_RATE = 100
+
+GPIO.setup(GPIO_PIN_RED, GPIO.OUT)
+GPIO.setup(GPIO_PIN_GREEN, GPIO.OUT)
+GPIO.setup(GPIO_PIN_BLUE, GPIO.OUT)
+PWM_RED = GPIO.PWM(GPIO_PIN_RED, PWM_REFRESH_RATE)
+PWM_GREEN = GPIO.PWM(GPIO_PIN_GREEN, PWM_REFRESH_RATE)
+PWM_BLUE = GPIO.PWM(GPIO_PIN_BLUE, PWM_REFRESH_RATE)
 
 UDP_IP = '0.0.0.0'
 UDP_PORT = 5000
@@ -37,20 +51,32 @@ def update(data):
         # any errors are caught by the caller
         pixels[led] = (r, g, b)
 
+def update_non_addressable(data):
+    """Update non-addressable led strip"""
+    r, g, b = data[2:5]
+    PWM_RED.ChangeDutyCycle(int(100 * (r / 255)))
+    PWM_GREEN.ChangeDutyCycle(int(100 * (g / 255)))
+    PWM_BLUE.ChangeDutyCycle(int(100 * (b / 255)))
+
+
 
 class Operation(Enum):
     """Reserve a few operation types"""
     START = 1
     STOP = 2
     UPDATE = 3
+    UPDATE_NON_ADDRESSABLE = 4
+
 
 
 operation_data_length = {
     Operation.UPDATE.value: 5,
+    Operation.UPDATE_NON_ADDRESSABLE.value: 3,
 }
 
 operations = {
     Operation.UPDATE.value: update,
+    Operation.UPDATE_NON_ADDRESSABLE.value: update_non_addressable,
 }
 
 
@@ -82,11 +108,16 @@ def main():
         except KeyboardInterrupt:
             running_flag = False
             pixels.deinit()
+
+            PWM_RED.stop()
+            PWM_GREEN.stop()
+            PWM_BLUE.stop()
+            GPIO.cleanup()
             exit()
 
 
 # Initiate pixels, used globally
-pixels = neopixel.NeoPixel(GPIO_PIN, PIXEL_COUNT, auto_write=False)
+pixels = neopixel.NeoPixel(GPIO_PIN_NEOPIXEL, PIXEL_COUNT, auto_write=False)
 pixel_thread = PixelThread()
 pixel_thread.start()
 

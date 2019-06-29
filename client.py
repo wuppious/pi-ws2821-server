@@ -4,6 +4,7 @@ import math
 import socket
 import time
 import numpy as np
+from random import randint
 
 # Based partially on Python sounddevice spectogram example
 
@@ -38,6 +39,16 @@ def form_update_operation(led, r, g, b):
     return packet
 
 
+def form_non_addressable_led_operation(r, g, b):
+    packet = bytearray()
+    packet.extend(to_bytes(4))  # Type
+    packet.extend(to_bytes(r))  # Red
+    packet.extend(to_bytes(g))  # Green
+    packet.extend(to_bytes(b))  # Blue
+
+    return packet
+
+
 def rainbow(pos):
     """Applies rainbow colouring on pixels red->blue->green->red(orange)"""
     if pos < 0 or pos > 255:
@@ -57,6 +68,10 @@ def rainbow(pos):
         g = int(255 - pos * 3)
         b = 0
     return (r, g, b)
+
+
+def smooth(a, b, s):
+    return b * s + a * (1 - s)
 
 
 def int_or_str(text):
@@ -110,6 +125,12 @@ def main():
         previous_values = [0] * PIXEL_COUNT
 
         smoothing = args.smoothing ** (1 / 8)
+
+        global previous_non_addr_br, na_r, na_g, na_b
+        previous_non_addr_br = 0
+        na_r = 0
+        na_g = 0
+        na_b = 0
 
         def audio_callback(indata, frames, time, status):
             if any(indata):
@@ -167,6 +188,28 @@ def main():
                         PIXEL_COUNT * 2 - i, r, g, b)
                     packet.extend(operation)
 
+                packet = bytearray()
+                global previous_non_addr_br, na_r, na_g, na_b
+                non_addr_br = np.clip(np.max(grouped[0:3]), 1 / 255, 1)
+                if non_addr_br < previous_non_addr_br:
+                    non_addr_br = smooth(
+                        non_addr_br, previous_non_addr_br, smoothing)
+
+                # Change color if beat is distinguishable
+                d_br = non_addr_br - previous_non_addr_br
+                if d_br >= 0.1:
+                    na_r = randint(0, 255)
+                    na_g = randint(0, 255)
+                    na_b = randint(0, 255)
+
+                previous_non_addr_br = non_addr_br
+
+                r = math.ceil(na_r * non_addr_br)
+                g = math.ceil(na_g * non_addr_br)
+                b = math.ceil(na_b * non_addr_br)
+
+                operation = form_non_addressable_led_operation(r, g, b)
+                packet.extend(operation)
                 # Send our UDP packet away
                 sock.sendto(packet, (UDP_IP, UDP_PORT))
 
